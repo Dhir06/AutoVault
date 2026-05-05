@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ make }} {{ model }} — AutoVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-bar"></div>
+
+    <div class="container">
+        <nav class="navbar animate-in">
+            <a href="/" class="navbar-brand">AUTOVAULT</a>
+            <a href="javascript:history.back()" class="back-link">← Back</a>
+        </nav>
+
+        {% if not specs and not wiki_summary and not sections %}
+            <div class="no-data animate-in">
+                <div class="no-data-icon">📡</div>
+                <h1 class="gradient-text" style="margin-bottom: 1rem;">No Data Found</h1>
+                <p>We couldn't find information for "{{ make }} {{ model }}".</p>
+                <a href="/" style="display: inline-block; margin-top: 2rem; padding: 0.75rem 2rem; background: var(--accent); color: #fff; border-radius: 999px; font-family: var(--font-display); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;">New Search</a>
+            </div>
+
+        {% else %}
+
+            <!-- Hero: title is overlaid on the image for a cinematic look -->
+            {% if wiki_image %}
+                <div class="hero-image-wrap animate-in delay-1">
+                    <img src="{{ wiki_image }}" alt="{{ make }} {{ model }}">
+                    <div class="hero-image-overlay"></div>
+                    <div class="hero-title-overlay">
+                        <div class="car-make-label">{{ make }}</div>
+                        <h1 class="car-title gradient-text">{{ model }}</h1>
+                    </div>
+                </div>
+            {% else %}
+                <div class="car-header animate-in delay-1">
+                    <div class="car-make-label">{{ make }}</div>
+                    <h1 class="car-title gradient-text">{{ model }}</h1>
+                </div>
+            {% endif %}
+
+            <div class="dashboard-grid animate-in delay-2">
+
+                <!-- LEFT: Overview + History -->
+                <div>
+
+                    {% if wiki_summary %}
+                        <div class="card" style="margin-bottom: 1.5rem;">
+                            <div class="card-header">
+                                <div class="card-header-dot"></div>
+                                <span class="card-label">Overview</span>
+                            </div>
+                            <div class="card-body">
+                                <p class="overview-text">{{ wiki_summary }}</p>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if sections %}
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="card-header-dot"></div>
+                                <span class="card-label">History & Development</span>
+                            </div>
+
+                            {% if sections %}
+                            <nav class="toc-row" aria-label="Jump to section">
+                                {% for section in sections %}
+                                <a href="#section-{{ loop.index }}" class="toc-chip">{{ section.title }}</a>
+                                {% endfor %}
+                                <a href="#listings-section" class="toc-chip toc-chip--listings">Listings</a>
+                            </nav>
+                            {% endif %}
+
+                            <div class="card-body">
+                                {% for section in sections %}
+                                    <div class="section-block" id="section-{{ loop.index }}">
+
+                                        {% if section.image %}
+                                            <!-- Image bleeds to card edges, title is overlaid on the photo -->
+                                            <div class="section-img-wrap">
+                                                <img src="{{ section.image }}" alt="{{ section.title }}" loading="lazy">
+                                                <div class="section-img-overlay">
+                                                    <div class="section-img-label">{{ section.title }}</div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <div class="section-title">{{ section.title }}</div>
+                                        {% endif %}
+
+                                        {% for para in section.text.split('\n') %}
+                                            {% if para.strip() %}
+                                                <p class="section-paragraph">{{ para.strip() }}</p>
+                                            {% endif %}
+                                        {% endfor %}
+
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                </div>
+
+                <!-- RIGHT: Specs -->
+                <div class="animate-in delay-3">
+                    <div class="specs-card">
+                        <div class="specs-card-header">
+                            <div class="card-header-dot"></div>
+                            <span class="card-label">Specifications</span>
+                        </div>
+                        <div class="card-body">
+                            {% if specs %}
+                                {% set spec = specs[0] %}
+                                <div class="spec-grid">
+                                    <div class="spec-card">
+                                        <span class="spec-label">Engine</span>
+                                        <span class="spec-value">{{ spec.displacement }}L</span>
+                                    </div>
+                                    <div class="spec-card">
+                                        <span class="spec-label">Cylinders</span>
+                                        <span class="spec-value">{{ spec.cylinders }} Cyl</span>
+                                    </div>
+                                    <div class="spec-card">
+                                        <span class="spec-label">Output</span>
+                                        <span class="spec-value">{% if spec.horsepower %}{{ spec.horsepower }} HP{% else %}N/A{% endif %}</span>
+                                    </div>
+                                    <div class="spec-card">
+                                        <span class="spec-label">Drive</span>
+                                        <span class="spec-value">{{ spec.drive|upper }}</span>
+                                    </div>
+                                    <div class="spec-card">
+                                        <span class="spec-label">Gearbox</span>
+                                        <span class="spec-value">{% if spec.transmission == "m" %}Manual{% elif spec.transmission == "a" %}Auto{% else %}{{ spec.transmission|upper }}{% endif %}</span>
+                                    </div>
+                                    <div class="spec-card">
+                                        <span class="spec-label">Fuel</span>
+                                        <span class="spec-value">{{ spec.fuel_type|title }}</span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <p style="color: var(--text-muted); font-size: 0.9rem;">No spec data available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ═══════════════════════════════════════════════
+                 LISTINGS NEAR YOU
+                 ═══════════════════════════════════════════════ -->
+            <section class="listings-section animate-in delay-4" id="listings-section">
+
+                <div class="listings-section-header">
+                    <div class="card-header-dot"></div>
+                    <span class="card-label">Listings Near You</span>
+                    <span class="listings-location-badge" id="listings-location-badge"></span>
+                    <button class="listings-change-btn" id="listings-change-btn" style="display:none">Change</button>
+                </div>
+
+                <!-- State: Prompt (initial — ask for location) -->
+                <div class="listings-prompt" id="listings-prompt">
+                    <div class="listings-prompt-icon">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                    </div>
+                    <p class="listings-prompt-text">
+                        Find used <strong>{{ make }} {{ model }}</strong> listings for sale near you
+                    </p>
+                    <div class="listings-actions">
+                        <button class="listings-geo-btn" id="listings-geo-btn">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                                <circle cx="12" cy="10" r="3"/>
+                            </svg>
+                            Use My Location
+                        </button>
+                        <span class="listings-or">or</span>
+                        <div class="listings-zip-form" id="listings-zip-form">
+                            <input
+                                type="text"
+                                id="listings-zip-input"
+                                class="listings-zip-input"
+                                placeholder="Enter zip code"
+                                maxlength="5"
+                                inputmode="numeric"
+                                aria-label="Zip code"
+                            >
+                            <button id="listings-zip-btn" class="listings-zip-btn">Go</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- State: Loading (skeleton cards) -->
+                <div class="listings-loading-wrap" id="listings-loading" style="display:none">
+                    <div class="listings-grid">
+                        <div class="listing-skeleton">
+                            <div class="skeleton-img"></div>
+                            <div class="skeleton-body">
+                                <div class="skeleton-line sk-price"></div>
+                                <div class="skeleton-line sk-title"></div>
+                                <div class="skeleton-line sk-meta"></div>
+                                <div class="skeleton-line sk-dealer"></div>
+                            </div>
+                        </div>
+                        <div class="listing-skeleton">
+                            <div class="skeleton-img"></div>
+                            <div class="skeleton-body">
+                                <div class="skeleton-line sk-price"></div>
+                                <div class="skeleton-line sk-title"></div>
+                                <div class="skeleton-line sk-meta"></div>
+                                <div class="skeleton-line sk-dealer"></div>
+                            </div>
+                        </div>
+                        <div class="listing-skeleton">
+                            <div class="skeleton-img"></div>
+                            <div class="skeleton-body">
+                                <div class="skeleton-line sk-price"></div>
+                                <div class="skeleton-line sk-title"></div>
+                                <div class="skeleton-line sk-meta"></div>
+                                <div class="skeleton-line sk-dealer"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- State: Results grid (populated by JS) -->
+                <div class="listings-grid" id="listings-grid" style="display:none"></div>
+
+                <!-- State: Empty -->
+                <div class="listings-empty" id="listings-empty" style="display:none">
+                    <div class="listings-state-title">No listings found</div>
+                    <p>No used <strong>{{ make }} {{ model }}</strong> listings within 100 miles. Try a different zip code.</p>
+                    <button class="listings-retry-btn" id="listings-empty-retry">Try Different Zip</button>
+                </div>
+
+                <!-- State: Error -->
+                <div class="listings-error" id="listings-error" style="display:none">
+                    <div class="listings-state-title">Couldn't load listings</div>
+                    <p id="listings-error-msg">Something went wrong. Please try again.</p>
+                    <button class="listings-retry-btn" id="listings-retry-btn">Try Again</button>
+                </div>
+
+            </section>
+
+        {% endif %}
+    </div>
+
+    <!-- ═══════════════════════════════════════════════
+         AI CHAT — Floating button + slide-in panel
+         ═══════════════════════════════════════════════ -->
+
+    <!-- FAB trigger -->
+    <button class="ai-fab" id="ai-fab" aria-label="Ask AI about this car">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        ASK AI
+    </button>
+
+    <!-- Backdrop (click to close) -->
+    <div class="chat-backdrop" id="chat-backdrop" aria-hidden="true"></div>
+
+    <!-- Chat panel -->
+    <div class="chat-panel" id="chat-panel" role="dialog" aria-modal="true" aria-label="AI automotive assistant">
+
+        <!-- Red accent line matching the top-bar -->
+        <div class="chat-top-bar"></div>
+
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="chat-header-info">
+                <div class="chat-header-label">
+                    <div class="card-header-dot"></div>
+                    AI ASSISTANT
+                </div>
+                <div class="chat-car-name">{{ make }} {{ model }}</div>
+            </div>
+            <button class="chat-close" id="chat-close" aria-label="Close AI chat">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Messages -->
+        <div class="chat-messages" id="chat-messages">
+            <!-- Static welcome bubble — not sent to the API -->
+            <div class="chat-msg chat-msg-ai">
+                Ask me anything about the <strong>{{ make }} {{ model }}</strong> — common problems, best years to buy, performance mods, reliability, or what to watch out for before purchasing.
+            </div>
+        </div>
+
+        <!-- Quick-start suggestion chips (hidden after first message) -->
+        <div class="chat-suggestions" id="chat-suggestions">
+            <button class="suggestion-chip" data-msg="What are the most common problems with this car?">Common problems</button>
+            <button class="suggestion-chip" data-msg="What's the best year to buy?">Best year</button>
+            <button class="suggestion-chip" data-msg="How reliable is this car long-term?">Reliability</button>
+            <button class="suggestion-chip" data-msg="What should I know before buying one?">Buying tips</button>
+        </div>
+
+        <!-- Input footer -->
+        <div class="chat-footer">
+            <div class="chat-input-wrap">
+                <textarea
+                    id="chat-input"
+                    class="chat-input"
+                    placeholder="Ask about the {{ make }} {{ model }}…"
+                    rows="1"
+                    aria-label="Type your question"
+                ></textarea>
+                <button class="chat-send" id="chat-send" aria-label="Send message">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── AI Chat Script ── -->
+    <script>
+        (function () {
+            const fab         = document.getElementById('ai-fab');
+            const panel       = document.getElementById('chat-panel');
+            const backdrop    = document.getElementById('chat-backdrop');
+            const messages    = document.getElementById('chat-messages');
+            const input       = document.getElementById('chat-input');
+            const sendBtn     = document.getElementById('chat-send');
+            const suggestions = document.getElementById('chat-suggestions');
+
+            // Embed car identity from Jinja — tojson handles quotes/escaping safely
+            const MAKE  = {{ make | tojson }};
+            const MODEL = {{ model | tojson }};
+
+            // Local message history sent with each request so Gemini has context
+            let history   = [];
+            let isLoading = false;
+
+            // ── Open / close ──────────────────────────────────────────────
+
+            function openChat() {
+                panel.classList.add('open');
+                backdrop.classList.add('open');
+                document.body.style.overflow = 'hidden';
+                // Wait for slide-in to finish before focusing
+                setTimeout(() => input.focus(), 420);
+            }
+
+            function closeChat() {
+                panel.classList.remove('open');
+                backdrop.classList.remove('open');
+                document.body.style.overflow = '';
+                fab.focus();
+            }
+
+            fab.addEventListener('click', openChat);
+            backdrop.addEventListener('click', closeChat);
+            document.getElementById('chat-close').addEventListener('click', closeChat);
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeChat(); });
+
+            // ── Render helpers ────────────────────────────────────────────
+
+            // Escape user text (XSS prevention), then render light markdown for AI text
+            function escapeHtml(str) {
+                return str
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function renderMarkdown(text) {
+                return escapeHtml(text)
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                    .replace(/\n/g, '<br>');
+            }
+
+            function appendBubble(role, content) {
+                const el = document.createElement('div');
+                el.classList.add('chat-msg', role === 'user' ? 'chat-msg-user' : 'chat-msg-ai');
+                if (role === 'user') {
+                    el.textContent = content;
+                } else {
+                    el.innerHTML = renderMarkdown(content);
+                }
+                messages.appendChild(el);
+                messages.scrollTop = messages.scrollHeight;
+            }
+
+            function showTyping() {
+                const el = document.createElement('div');
+                el.id = 'typing-indicator';
+                el.classList.add('chat-msg', 'chat-msg-ai', 'typing-indicator');
+                el.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+                messages.appendChild(el);
+                messages.scrollTop = messages.scrollHeight;
+            }
+
+            function removeTyping() {
+                const el = document.getElementById('typing-indicator');
+                if (el) el.remove();
+            }
+
+            // ── Send message ──────────────────────────────────────────────
+
+            async function send(text) {
+                text = text.trim();
+                if (!text || isLoading) return;
+
+                // Hide suggestion chips after first send
+                suggestions.style.display = 'none';
+
+                history.push({ role: 'user', content: text });
+                appendBubble('user', text);
+
+                input.value = '';
+                input.style.height = 'auto';
+
+                isLoading = true;
+                sendBtn.disabled = true;
+                showTyping();
+
+                try {
+                    const res = await fetch('/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ make: MAKE, model: MODEL, messages: history })
+                    });
+                    const data = await res.json();
+                    removeTyping();
+
+                    const reply = data.reply || data.error || 'Sorry, something went wrong.';
+                    if (data.reply) {
+                        history.push({ role: 'assistant', content: reply });
+                    }
+                    appendBubble('ai', reply);
+                } catch (_) {
+                    removeTyping();
+                    appendBubble('ai', 'Connection error — please check your internet and try again.');
+                } finally {
+                    isLoading = false;
+                    sendBtn.disabled = false;
+                    input.focus();
+                }
+            }
+
+            // ── Input controls ────────────────────────────────────────────
+
+            sendBtn.addEventListener('click', () => send(input.value));
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    send(input.value);
+                }
+            });
+
+            // Auto-resize textarea up to 120px
+            input.addEventListener('input', () => {
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+            });
+
+            // Suggestion chips
+            document.querySelectorAll('.suggestion-chip').forEach((chip) => {
+                chip.addEventListener('click', () => send(chip.dataset.msg));
+            });
+        })();
+    </script>
+
+    <!-- ── Listings Script ── -->
+    <script>
+        (function () {
+            const MAKE  = {{ make | tojson }};
+            const MODEL = {{ model | tojson }};
+
+            const elPrompt  = document.getElementById('listings-prompt');
+            const elLoading = document.getElementById('listings-loading');
+            const elGrid    = document.getElementById('listings-grid');
+            const elEmpty   = document.getElementById('listings-empty');
+            const elError   = document.getElementById('listings-error');
+            const elBadge   = document.getElementById('listings-location-badge');
+            const geoBtn    = document.getElementById('listings-geo-btn');
+            const zipInput  = document.getElementById('listings-zip-input');
+            const zipBtn    = document.getElementById('listings-zip-btn');
+            const zipForm   = document.getElementById('listings-zip-form');
+            const retryBtn   = document.getElementById('listings-retry-btn');
+            const emptyRetry = document.getElementById('listings-empty-retry');
+            const errorMsg   = document.getElementById('listings-error-msg');
+            const changeBtn  = document.getElementById('listings-change-btn');
+
+            if (!elPrompt) return;
+
+            let lastZip   = '';
+            let lastLabel = '';
+
+            function showState(state) {
+                elPrompt.style.display  = state === 'prompt'  ? '' : 'none';
+                elLoading.style.display = state === 'loading' ? '' : 'none';
+                elGrid.style.display    = state === 'grid'    ? '' : 'none';
+                elEmpty.style.display   = state === 'empty'   ? '' : 'none';
+                elError.style.display   = state === 'error'   ? '' : 'none';
+                // Show "Change" button once a search has been performed
+                changeBtn.style.display = ['grid', 'empty', 'error'].includes(state) ? 'inline-flex' : 'none';
+            }
+
+            function escapeHtml(str) {
+                return String(str ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            async function fetchListings(zip, locationLabel) {
+                lastZip   = zip;
+                lastLabel = locationLabel || zip;
+                showState('loading');
+
+                elBadge.textContent    = `Near ${lastLabel}`;
+                elBadge.style.display  = '';
+
+                try {
+                    const res  = await fetch(
+                        `/listings?make=${encodeURIComponent(MAKE)}&model=${encodeURIComponent(MODEL)}&zip=${encodeURIComponent(zip)}`
+                    );
+                    const data = await res.json();
+
+                    if (!res.ok || data.error) {
+                        errorMsg.textContent = data.error || 'Something went wrong.';
+                        showState('error');
+                        return;
+                    }
+
+                    if (!data.listings || data.listings.length === 0) {
+                        showState('empty');
+                        return;
+                    }
+
+                    renderListings(data.listings);
+                } catch (_) {
+                    errorMsg.textContent = 'Connection error — please check your internet and try again.';
+                    showState('error');
+                }
+            }
+
+            function renderListings(listings) {
+                elGrid.innerHTML = '';
+
+                listings.forEach((item) => {
+                    const price    = (item.price && item.price > 0) ? `$${Number(item.price).toLocaleString()}` : 'Call for Price';
+                    const miles    = item.miles ? `${Number(item.miles).toLocaleString()} mi` : null;
+                    const location = [item.city, item.state].filter(Boolean).join(', ');
+
+                    const imgHtml  = item.image
+                        ? `<div class="listing-img-wrap"><img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.heading)}" loading="lazy"></div>`
+                        : '';
+                    const milesHtml = miles
+                        ? `<div class="listing-meta"><span class="listing-miles">${escapeHtml(miles)}</span></div>`
+                        : '';
+                    const locationHtml = location
+                        ? `<span class="listing-location">${escapeHtml(location)}</span>`
+                        : '';
+                    const ctaHtml  = item.url
+                        ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="listing-cta">View Listing →</a>`
+                        : '';
+
+                    const card = document.createElement('div');
+                    card.className = `listing-card${item.image ? '' : ' listing-card--no-img'}`;
+                    card.innerHTML = `
+                        ${imgHtml}
+                        <div class="listing-body">
+                            <div class="listing-price">${escapeHtml(price)}</div>
+                            <div class="listing-heading">${escapeHtml(item.heading)}</div>
+                            ${milesHtml}
+                            <div class="listing-dealer">
+                                <span class="listing-dealer-name">${escapeHtml(item.dealer_name)}</span>
+                                ${locationHtml}
+                            </div>
+                            ${ctaHtml}
+                        </div>
+                    `;
+                    elGrid.appendChild(card);
+                });
+
+                showState('grid');
+            }
+
+            // ── Geolocation ───────────────────────────────────────────────
+
+            const GEO_BTN_DEFAULT = geoBtn.innerHTML;
+
+            geoBtn.addEventListener('click', () => {
+                if (!navigator.geolocation) {
+                    zipInput.focus();
+                    return;
+                }
+                geoBtn.disabled   = true;
+                geoBtn.textContent = 'Locating…';
+
+                navigator.geolocation.getCurrentPosition(
+                    async ({ coords }) => {
+                        try {
+                            const res = await fetch(
+                                `/geocode?lat=${coords.latitude}&lng=${coords.longitude}`
+                            );
+                            const geo = await res.json();
+                            if (geo.zip && /^\d{5}$/.test(geo.zip)) {
+                                const label = geo.city
+                                    ? `${geo.city}, ${geo.state}`
+                                    : geo.zip;
+                                fetchListings(geo.zip, label);
+                            } else {
+                                resetGeoBtn();
+                                zipInput.focus();
+                            }
+                        } catch (_) {
+                            resetGeoBtn();
+                            zipInput.focus();
+                        }
+                    },
+                    () => {
+                        resetGeoBtn();
+                        zipInput.focus();
+                    },
+                    { timeout: 8000 }
+                );
+            });
+
+            function resetGeoBtn() {
+                geoBtn.disabled = false;
+                geoBtn.innerHTML = GEO_BTN_DEFAULT;
+            }
+
+            // ── Zip input ─────────────────────────────────────────────────
+
+            function handleZip() {
+                const zip = zipInput.value.trim();
+                if (/^\d{5}$/.test(zip)) {
+                    fetchListings(zip, zip);
+                } else {
+                    zipForm.classList.add('input-error');
+                    setTimeout(() => zipForm.classList.remove('input-error'), 600);
+                    zipInput.focus();
+                }
+            }
+
+            zipBtn.addEventListener('click', handleZip);
+            zipInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleZip(); });
+            zipInput.addEventListener('input', () => {
+                zipInput.value = zipInput.value.replace(/\D/g, '').slice(0, 5);
+            });
+
+            // ── Retry / back buttons ──────────────────────────────────────
+
+            retryBtn.addEventListener('click', () => {
+                if (lastZip) fetchListings(lastZip, lastLabel);
+                else showState('prompt');
+            });
+
+            emptyRetry.addEventListener('click', () => {
+                showState('prompt');
+                elBadge.style.display = 'none';
+                zipInput.value = '';
+                resetGeoBtn();
+            });
+
+            changeBtn.addEventListener('click', () => {
+                showState('prompt');
+                elBadge.style.display = 'none';
+                zipInput.value = '';
+                resetGeoBtn();
+                elPrompt.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        })();
+    </script>
+</body>
+</html>

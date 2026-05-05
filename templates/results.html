@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ corrected_make }} Models — AutoVault</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-bar"></div>
+
+    <div class="container">
+        <nav class="navbar animate-in">
+            <a href="/" class="navbar-brand">AUTOVAULT</a>
+            <a href="/" class="back-link">← New Search</a>
+        </nav>
+
+        <div class="results-header animate-in delay-1">
+            <div class="results-count">{{ results|length }} Models Found</div>
+            <h1 class="gradient-text">{{ corrected_make }}</h1>
+
+            {% if corrected_make.lower() != car.lower() %}
+                <div class="correction-notice">
+                    ⚡ Showing results for "{{ corrected_make }}" — corrected from "{{ car }}"
+                </div>
+            {% endif %}
+        </div>
+
+        {% if results %}
+            <div class="models-grid animate-in delay-2">
+                {% for result in results %}
+                    <a href="/car/{{ result['Make_Name'] }}/{{ result['Model_Name'] }}" class="model-card">
+                        <div>
+                            <div class="model-name">{{ result["Model_Name"] }}</div>
+                            <div class="model-make">{{ result["Make_Name"] }}</div>
+                        </div>
+                        <span class="model-arrow">→</span>
+                    </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state animate-in delay-2">
+                <div class="no-data-icon">🔍</div>
+                <h2>No Models Found</h2>
+                <p style="margin-top: 0.5rem;">Try a different search term.</p>
+                <a href="/" style="display: inline-block; margin-top: 1.5rem; padding: 0.75rem 1.5rem; background: var(--accent); color: #fff; border-radius: 999px; font-family: var(--font-display); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;">Search Again</a>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "brands": [
+    "Acura", "Alfa Romeo", "AMC", "Aston Martin", "Audi", "Austin", "Bentley",
+    "BMW", "Bugatti", "Buick", "Cadillac", "Chevrolet", "Chrysler", "Citroen",
+    "Dacia", "Daewoo", "Daihatsu", "Datsun", "DeLorean", "DMC", "Dodge", "Eagle",
+    "Ferrari", "Fiat", "Fisker", "Ford", "Genesis", "Geo", "GMC", "Holden",
+    "Honda", "Hudson", "Hummer", "Hyundai", "Infiniti", "Isuzu", "Jaguar",
+    "Jeep", "Karma", "Kia", "Koenigsegg", "Lada", "Lamborghini", "Lancia",
+    "Land Rover", "Lexus", "Lincoln", "Lotus", "Lucid", "Maserati", "Maybach",
+    "Mazda", "McLaren", "Mercedes-Benz", "Mercury", "MG", "MINI", "Mitsubishi",
+    "Morgan", "Nissan", "Oldsmobile", "Opel", "Pagani", "Peugeot", "Plymouth",
+    "Polestar", "Pontiac", "Porsche", "Ram", "Renault", "Rivian", "Rolls-Royce",
+    "Rover", "Saab", "Saleen", "Saturn", "Scion", "Seat", "Shelby", "Skoda",
+    "Smart", "Spyker", "Studebaker", "Subaru", "Suzuki", "Tesla", "Toyota",
+      "Vauxhall", "Volkswagen", "Volvo", "Yugo"
+  ]
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoVault — Car Research Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="top-bar"></div>
+
+    <div class="container">
+        <nav class="navbar animate-in">
+            <span class="navbar-brand">AUTOVAULT</span>
+        </nav>
+
+        <div class="hero">
+            <div class="hero-eyebrow animate-in delay-1">Car Research Platform</div>
+
+            <h1 class="hero-title gradient-text animate-in delay-2">
+                KNOW<br>EVERY<br>CAR.
+            </h1>
+
+            <p class="hero-subtitle animate-in delay-3">
+                Deep specs, full history, and detailed breakdowns for any vehicle ever made.
+            </p>
+
+            <form action="/search" method="GET" class="search-form animate-in delay-4">
+                <input
+                    type="text"
+                    name="car"
+                    class="search-input"
+                    placeholder="Try 'Ford Mustang' or just 'Supra'..."
+                    required
+                    autocomplete="off"
+                >
+                <button type="submit" class="search-btn">Search</button>
+            </form>
+
+            <div class="hero-stats animate-in delay-4">
+                <div class="stat-item">
+                    <div class="stat-number">100+</div>
+                    <div class="stat-label">Brands</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">1000s</div>
+                    <div class="stat-label">Models</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">Free</div>
+                    <div class="stat-label">Always</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

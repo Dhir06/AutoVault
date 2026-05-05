@@ -1,0 +1,25 @@
+# Environment variables
+.env
+
+# Python virtual environment — too large, recreated with pip install
+.venv/
+venv/
+env/
+
+# Python cache files — auto-generated, not needed
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# AutoVault cache — regenerates automatically on first run
+model_lookup_cache.json
+
+# PyCharm project files — editor config, not part of the app
+.idea/
+
+# macOS junk files
+.DS_Store
+
+# Logs
+*.log

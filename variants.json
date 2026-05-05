@@ -1,0 +1,125 @@
+{
+    "Ram": [
+        "1500 TRX",
+        "ProMaster"
+    ],
+    "Ford": [
+        "Raptor",
+        "F-150 Lightning",
+        "GT40",
+        "EcoSport",
+        "Bronco Sport"
+    ],
+    "Chevrolet": [
+        "Corvette Z06",
+        "Corvette ZR1",
+        "Corvette Stingray"
+    ],
+    "Dodge": [
+        "Viper",
+        "Challenger SRT Demon"
+    ],
+    "BMW": [
+        "M1",
+        "M2",
+        "M3",
+        "M4",
+        "M5",
+        "M8",
+        "X5 M",
+        "X6 M"
+    ],
+    "Mercedes-Benz": [
+        "G-Class",
+        "SLS AMG",
+        "CLK GTR"
+    ],
+    "Porsche": [
+        "918 Spyder",
+        "Carrera GT",
+        "959"
+    ],
+    "Ferrari": [
+        "Enzo",
+        "F40",
+        "F50",
+        "288 GTO",
+        "LaFerrari"
+    ],
+    "Lamborghini": [
+        "Aventador",
+        "Huracan",
+        "Urus",
+        "Gallardo",
+        "Murcielago",
+        "Countach"
+    ],
+    "Aston Martin": [
+        "Valkyrie",
+        "One-77",
+        "Vulcan"
+    ],
+    "McLaren": [
+        "F1",
+        "P1",
+        "Senna",
+        "720S",
+        "Elva"
+    ],
+    "Bugatti": [
+        "Veyron",
+        "Chiron",
+        "Divo"
+    ],
+    "Koenigsegg": [
+        "Agera",
+        "Jesko",
+        "Regera",
+        "CCX"
+    ],
+    "Pagani": [
+        "Zonda",
+        "Huayra"
+    ],
+    "Shelby": [
+        "Cobra",
+        "Daytona"
+    ],
+    "Tesla": [
+        "Roadster",
+        "Cybertruck"
+    ],
+    "Toyota": [
+        "Supra",
+        "GR86",
+        "Land Cruiser",
+        "Tacoma TRD Pro"
+    ],
+    "Nissan": [
+        "GT-R",
+        "370Z",
+        "240SX"
+    ],
+    "Honda": [
+        "NSX",
+        "S2000",
+        "Del Sol"
+    ],
+    "Subaru": [
+        "WRX STI",
+        "BRZ"
+    ],
+    "Mitsubishi": [
+        "Lancer Evolution",
+        "Eclipse"
+    ],
+    "Alfa Romeo": [
+        "4C",
+        "8C Competizione"
+    ],
+    "Jaguar": [
+        "XJ220",
+        "F-Type",
+        "E-Type"
+    ]
+}
