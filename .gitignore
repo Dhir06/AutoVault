@@ -25,3 +25,4 @@ model_lookup_cache.json
 *.log
 
 .claude/
+Claude.md
