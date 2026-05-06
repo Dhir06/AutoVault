@@ -200,145 +200,106 @@ def get_specs(make, model):
     return []
 
 
+def _wiki_get(url, params, headers, timeout):
+    """
+    GET a Wikipedia URL, retrying once with backoff on HTTP 429.
+    Wikipedia rate-limits at ~10 req/s for anonymous clients; sequential page
+    loads can briefly exceed that. A single 2-second backoff retry handles the
+    common case without hanging the request.
+    """
+    try:
+        resp = requests.get(url, params=params, headers=headers, timeout=timeout)
+    except Exception:
+        raise
+    if resp.status_code == 429:
+        retry_after = resp.headers.get("Retry-After")
+        wait = 2.0
+        if retry_after:
+            try:
+                wait = max(1.0, min(5.0, float(retry_after)))
+            except ValueError:
+                pass
+        print(f"[wiki] 429 on {url.split('/')[-1] or url} — retrying after {wait}s")
+        time.sleep(wait)
+        resp = requests.get(url, params=params, headers=headers, timeout=timeout)
+    return resp
+
+
 def get_section_images(page_title, wiki_headers):
     """
     Returns dict: section_title_lowercase -> image URL.
 
-    Fetches the full article wikitext and finds the first [[File:]] reference
-    inside each level-2 section's own markup. This guarantees the right image
-    goes to the right section — no sequential guessing, no cross-contamination
-    from infoboxes, comparison tables, or navigation templates.
-    Uses 2 API calls total (wikitext + imageinfo batch).
+    Parses Wikipedia's *rendered HTML* (action=parse&prop=text) for the article.
+    For each level-2 <h2> section, takes the first valid <img> appearing in
+    that section's HTML body. This is the most reliable approach because:
+      - Wikipedia handles all template expansion for us
+      - Section boundaries are well-defined HTML elements
+      - <h2> heading text matches the extract API exactly (no anchor/template noise)
+      - Image URLs are pre-formatted — no separate imageinfo call needed
+    Uses 1 API call total.
     """
     api_url    = "https://en.wikipedia.org/w/api.php"
     safe_title = page_title.replace(' ', '_')
 
-    # ── Step 1: fetch full article wikitext ───────────────────────────────
     try:
-        resp = requests.get(api_url, params={
+        resp = _wiki_get(api_url, params={
             "action": "parse",
             "page":   safe_title,
-            "prop":   "wikitext",
+            "prop":   "text",
             "format": "json",
-        }, headers=wiki_headers, timeout=12)
+        }, headers=wiki_headers, timeout=15)
         if resp.status_code != 200:
-            print(f"[images] wikitext fetch returned {resp.status_code} for '{page_title}'")
+            print(f"[images] HTML fetch {resp.status_code} for '{page_title}'")
             return {}
-        wikitext = resp.json().get("parse", {}).get("wikitext", {}).get("*", "")
+        html = resp.json().get("parse", {}).get("text", {}).get("*", "")
     except Exception as e:
-        print(f"[images] wikitext fetch failed for '{page_title}': {e}")
+        print(f"[images] HTML fetch failed for '{page_title}': {e}")
         return {}
 
-    if not wikitext:
+    if not html:
         return {}
 
-    # ── Step 2: split wikitext into level-2 section blocks ───────────────
-    # Matches exactly == Heading == lines, NOT === deeper headings ===
-    # The [^=\n] ensures the char right after == is not another =
-    parts = re.split(r'^==([^=\n].*?)==[ \t]*$', wikitext, flags=re.MULTILINE)
-    # parts = [lead_text, heading1, body1, heading2, body2, ...]
-    if len(parts) < 3:
-        print(f"[images] no level-2 sections found for '{page_title}'")
+    # Split on <h2> tags. Each h2 marks a top-level section boundary.
+    h2_split = re.split(r'<h2(?:\s[^>]*)?>(.*?)</h2>', html, flags=re.DOTALL)
+    # h2_split = [pre_first_h2_html, h2_inner1, body1, h2_inner2, body2, ...]
+    if len(h2_split) < 3:
+        print(f"[images] no <h2> sections found for '{page_title}'")
         return {}
 
-    # ── Step 3: find first valid file reference in each section's markup ──
-    # Pattern A: inline [[File:Name.ext|...]] / [[Image:Name.ext|...]]
-    inline_re   = re.compile(r'\[\[(?:File|Image):([^|\]\n<]+\.(?:jpg|jpeg|png|webp))', re.IGNORECASE)
-    # Pattern B: infobox template parameter — |image=Name.jpg, |image1=..., |photo=...
-    # This is how most generation-specific infoboxes embed their image. Wikipedia's
-    # car articles overwhelmingly use this pattern for per-generation photos.
-    template_re = re.compile(
-        r'\|\s*(?:image|photo|pic)\d*\s*=\s*(?:\[\[(?:File|Image):)?\s*([^|\]\n<}]+?\.(?:jpg|jpeg|png|webp))',
-        re.IGNORECASE,
-    )
-    # Pattern C: <gallery> blocks
-    gallery_re  = re.compile(r'<gallery[^>]*>(.*?)</gallery>', re.IGNORECASE | re.DOTALL)
+    img_re = re.compile(r'<img[^>]+src="([^"]+)"', re.IGNORECASE)
 
-    def _clean_fname(raw):
-        n = raw.strip().replace('_', ' ')
-        # Strip leftover File:/Image: prefix if the regex captured it
-        if n.lower().startswith('file:'):
-            n = n[5:].lstrip()
-        elif n.lower().startswith('image:'):
-            n = n[6:].lstrip()
-        return n
+    result    = {}
+    used_urls = set()
 
-    def first_image_in_block(block, used):
-        # Try inline [[File:]] first — most specific to this section's content
-        for m in inline_re.finditer(block):
-            n = _clean_fname(m.group(1))
-            if n and n not in used and is_valid_car_image(n):
-                return n
-        # Then infobox template parameters (covers per-generation infoboxes)
-        for m in template_re.finditer(block):
-            n = _clean_fname(m.group(1))
-            if n and n not in used and is_valid_car_image(n):
-                return n
-        # Finally galleries
-        for gm in gallery_re.finditer(block):
-            for line in gm.group(1).splitlines():
-                ls = line.strip()
-                if ls.lower().startswith('file:') or ls.lower().startswith('image:'):
-                    n = _clean_fname(ls.split(':', 1)[1].split('|')[0])
-                    if n and n not in used and is_valid_car_image(n):
-                        return n
-        return None
+    for i in range(1, len(h2_split) - 1, 2):
+        # Strip all HTML tags and the [edit] link to get a clean title
+        title = re.sub(r'<[^>]+>', '', h2_split[i])
+        title = re.sub(r'\[\s*edit\s*\]', '', title, flags=re.IGNORECASE).strip().lower()
+        if not title:
+            continue
 
-    section_candidates = {}  # sec_title_lower -> filename
-    used_files         = set()  # prevent same image appearing in two sections
-    needed_files       = []
+        body = h2_split[i + 1]
 
-    for i in range(1, len(parts) - 1, 2):
-        sec_title = parts[i].strip().lower()
-        sec_body  = parts[i + 1]
-        fname     = first_image_in_block(sec_body, used_files)
-        if fname:
-            section_candidates[sec_title] = fname
-            used_files.add(fname)
-            if fname not in needed_files:
-                needed_files.append(fname)
-
-    print(f"[images] {len(section_candidates)} sections with file candidates for '{page_title}'")
-    if not needed_files:
-        return {}
-
-    # ── Step 4: batch-fetch imageinfo for all candidate files ─────────────
-    file_info = {}  # normalized_filename -> url
-    for i in range(0, len(needed_files), 50):
-        batch      = needed_files[i:i + 50]
-        titles_str = "|".join(f"File:{f}" for f in batch)
-        try:
-            info_resp = requests.get(api_url, params={
-                "action": "query",
-                "titles": titles_str,
-                "prop":   "imageinfo",
-                "iiprop": "url|size",
-                "format": "json",
-            }, headers=wiki_headers, timeout=10)
-            if info_resp.status_code == 200:
-                for pd in info_resp.json().get("query", {}).get("pages", {}).values():
-                    fname_sp  = pd.get("title", "").replace("File:", "").replace("_", " ")
-                    imageinfo = pd.get("imageinfo", [])
-                    if imageinfo:
-                        info   = imageinfo[0]
-                        url    = info.get("url", "")
-                        width  = info.get("width", 0)
-                        height = info.get("height", 1)
-                        aspect = width / height if height else 0
-                        # Slightly relaxed thresholds — catches more valid section images
-                        if url and width >= 150 and aspect >= 0.7 and is_valid_car_image(url):
-                            file_info[fname_sp] = url
-        except Exception as e:
-            print(f"[images] imageinfo batch failed: {e}")
-
-    # ── Step 5: map section titles to image URLs ──────────────────────────
-    result = {}
-    for sec_title, fname in section_candidates.items():
-        # Try space-normalized then underscore-normalized key
-        url = file_info.get(fname) or file_info.get(fname.replace(' ', '_'))
-        if url:
-            result[sec_title] = url
-            print(f"[images]   '{sec_title}' ← {fname}")
+        for src in img_re.findall(body):
+            if src.startswith('//'):
+                src = 'https:' + src
+            if not src.startswith('https://'):
+                continue
+            # Filter out tiny thumbs (icons, badges) by the size in the URL
+            sm = re.search(r'/(\d+)px-', src)
+            if sm and int(sm.group(1)) < 100:
+                continue
+            # Convert thumb URL → original full-size URL
+            #   /wikipedia/commons/thumb/X/Y/FILE/Npx-FILE  →  /wikipedia/commons/X/Y/FILE
+            full = re.sub(r'/thumb(/[^/]+/[^/]+/[^/]+)/[^/]+\.[a-zA-Z0-9]+$', r'\1', src)
+            if not is_valid_car_image(full):
+                continue
+            if full in used_urls:
+                continue
+            result[title] = full
+            used_urls.add(full)
+            print(f"[images]   '{title}' ← {full.rsplit('/', 1)[-1]}")
+            break
 
     print(f"[images] {len(result)} sections got images for '{page_title}'")
     return result
@@ -506,7 +467,7 @@ def car_detail(make, model):
     if wiki_page_title:
         try:
             summary_url   = f"https://en.wikipedia.org/api/rest_v1/page/summary/{wiki_page_title.replace(' ', '_')}"
-            wiki_response = requests.get(summary_url, headers=wiki_headers, timeout=10)
+            wiki_response = _wiki_get(summary_url, params=None, headers=wiki_headers, timeout=10)
             if wiki_response.status_code == 200:
                 wiki_data    = wiki_response.json()
                 wiki_summary = wiki_data.get("extract", "")
@@ -521,7 +482,7 @@ def car_detail(make, model):
         # This block builds section text. Isolated so image failures below
         # cannot cause this to be lost.
         try:
-            extract_response = requests.get(
+            extract_response = _wiki_get(
                 "https://en.wikipedia.org/w/api.php",
                 params={
                     "action":      "query",
