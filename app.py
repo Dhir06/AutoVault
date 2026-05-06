@@ -202,26 +202,28 @@ def get_specs(make, model):
 
 def _wiki_get(url, params, headers, timeout):
     """
-    GET a Wikipedia URL, retrying once with backoff on HTTP 429.
-    Wikipedia rate-limits at ~10 req/s for anonymous clients; sequential page
-    loads can briefly exceed that. A single 2-second backoff retry handles the
-    common case without hanging the request.
+    GET a Wikipedia URL with up-to-2 retries on HTTP 429.
+    Wikipedia rate-limits at ~10 req/s for anonymous clients; bursty page loads
+    can briefly exceed that. Backs off 2s then 6s, honouring Retry-After when
+    the server provides it (capped at 10s).
     """
-    try:
+    resp = None
+    for attempt in range(3):
         resp = requests.get(url, params=params, headers=headers, timeout=timeout)
-    except Exception:
-        raise
-    if resp.status_code == 429:
+        if resp.status_code != 429:
+            return resp
+        if attempt == 2:
+            return resp
         retry_after = resp.headers.get("Retry-After")
-        wait = 2.0
+        wait = 2.0 if attempt == 0 else 6.0
         if retry_after:
             try:
-                wait = max(1.0, min(5.0, float(retry_after)))
+                wait = max(1.0, min(10.0, float(retry_after)))
             except ValueError:
                 pass
-        print(f"[wiki] 429 on {url.split('/')[-1] or url} — retrying after {wait}s")
+        tag = url.split("/")[-1].split("?")[0] or url
+        print(f"[wiki] 429 on {tag} — retry {attempt + 1}/2 after {wait}s")
         time.sleep(wait)
-        resp = requests.get(url, params=params, headers=headers, timeout=timeout)
     return resp
 
 
@@ -230,12 +232,12 @@ def get_section_images(page_title, wiki_headers):
     Returns dict: section_title_lowercase -> image URL.
 
     Parses Wikipedia's *rendered HTML* (action=parse&prop=text) for the article.
-    For each level-2 <h2> section, takes the first valid <img> appearing in
-    that section's HTML body. This is the most reliable approach because:
-      - Wikipedia handles all template expansion for us
-      - Section boundaries are well-defined HTML elements
-      - <h2> heading text matches the extract API exactly (no anchor/template noise)
-      - Image URLs are pre-formatted — no separate imageinfo call needed
+    For each level-2 <h2> AND level-3 <h3> section, takes the first valid <img>
+    appearing in that section's HTML body (bounded by the next h2/h3, whichever
+    comes first). Splitting on both levels matters for hierarchical articles
+    like Toyota Camry, where generations are h3 under h2 'Narrow-body' /
+    'Wide-body' parents — h2-only splitting would attribute a child generation's
+    image to the parent and miss every individual generation.
     Uses 1 API call total.
     """
     api_url    = "https://en.wikipedia.org/w/api.php"
@@ -259,11 +261,14 @@ def get_section_images(page_title, wiki_headers):
     if not html:
         return {}
 
-    # Split on <h2> tags. Each h2 marks a top-level section boundary.
-    h2_split = re.split(r'<h2(?:\s[^>]*)?>(.*?)</h2>', html, flags=re.DOTALL)
-    # h2_split = [pre_first_h2_html, h2_inner1, body1, h2_inner2, body2, ...]
-    if len(h2_split) < 3:
-        print(f"[images] no <h2> sections found for '{page_title}'")
+    # Find every h2 OR h3 heading. A section's body is the HTML between this
+    # heading and the NEXT heading (regardless of level). This means an h2 with
+    # h3 children gets only its preamble as body — its h3 children become their
+    # own dict entries with their own first images.
+    header_re = re.compile(r'<h([23])(?:\s[^>]*)?>(.*?)</h\1>', re.DOTALL | re.IGNORECASE)
+    matches   = list(header_re.finditer(html))
+    if not matches:
+        print(f"[images] no h2/h3 sections found for '{page_title}'")
         return {}
 
     img_re = re.compile(r'<img[^>]+src="([^"]+)"', re.IGNORECASE)
@@ -271,14 +276,15 @@ def get_section_images(page_title, wiki_headers):
     result    = {}
     used_urls = set()
 
-    for i in range(1, len(h2_split) - 1, 2):
-        # Strip all HTML tags and the [edit] link to get a clean title
-        title = re.sub(r'<[^>]+>', '', h2_split[i])
+    for idx, m in enumerate(matches):
+        title = re.sub(r'<[^>]+>', '', m.group(2))
         title = re.sub(r'\[\s*edit\s*\]', '', title, flags=re.IGNORECASE).strip().lower()
         if not title:
             continue
 
-        body = h2_split[i + 1]
+        body_start = m.end()
+        body_end   = matches[idx + 1].start() if idx + 1 < len(matches) else len(html)
+        body       = html[body_start:body_end]
 
         for src in img_re.findall(body):
             if src.startswith('//'):
@@ -416,7 +422,7 @@ def car_detail(make, model):
     # ── Find the Wikipedia article title ──────────────────────────────────
     wiki_page_title = None
     try:
-        search_response = requests.get(
+        search_response = _wiki_get(
             "https://en.wikipedia.org/w/api.php",
             params={"action": "query", "list": "search", "srsearch": search_term, "format": "json"},
             headers=wiki_headers,
@@ -447,7 +453,7 @@ def car_detail(make, model):
     if not wiki_page_title:
         try:
             direct_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{search_term.replace(' ', '_')}"
-            dr = requests.get(direct_url, headers=wiki_headers, timeout=8)
+            dr = _wiki_get(direct_url, params=None, headers=wiki_headers, timeout=8)
             if dr.status_code == 200:
                 dd = dr.json()
                 if dd.get("type") != "disambiguation" and any(
